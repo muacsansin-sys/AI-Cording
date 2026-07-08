@@ -4,7 +4,8 @@ const STORAGE_KEYS = {
   events: 'lovebridge.events',
   settings: 'lovebridge.translation',
   startDate: 'lovebridge.startDate',
-  mood: 'lovebridge.mood'
+  mood: 'lovebridge.mood',
+  pendingInvite: 'lovebridge.pendingInvite'
 };
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -32,7 +33,7 @@ const els = {
   chatForm: $('#chatForm'),
   chatInput: $('#chatInput'),
   chatStatus: $('#chatStatus'),
-  clearChatBtn: $('#clearChatBtn'),
+  exportChatBtn: $('#exportChatBtn'),
   eventForm: $('#eventForm'),
   eventTitle: $('#eventTitle'),
   eventDate: $('#eventDate'),
@@ -43,6 +44,9 @@ const els = {
   partnerCode: $('#partnerCode'),
   connectionState: $('#connectionState'),
   connectionStatus: $('#connectionStatus'),
+  googleLoginBtn: $('#googleLoginBtn'),
+  logoutBtn: $('#logoutBtn'),
+  authStatus: $('#authStatus'),
   apiConfigForm: $('#apiConfigForm'),
   apiKeyInput: $('#apiKeyInput'),
   modelInput: $('#modelInput'),
@@ -76,8 +80,17 @@ const state = {
   startDate: '',
   mood: null,
   firestore: null,
-  storage: null
+  storage: null,
+  auth: null,
+  authUser: null,
+  unsubMessages: null,
+  unsubEvents: null
 };
+
+const inviteCode = new URLSearchParams(window.location.search).get('invite')
+  || new URLSearchParams(window.location.search).get('couple')
+  || new URLSearchParams(window.location.search).get('code')
+  || '';
 
 function readJson(key, fallback) {
   try {
@@ -224,13 +237,46 @@ function initFirebase() {
     const app = window.firebase.apps?.length ? window.firebase.app() : window.firebase.initializeApp(window.firebaseConfig);
     state.firestore = window.firebase.firestore(app);
     state.storage = window.firebase.storage ? window.firebase.storage(app) : null;
+    state.auth = window.firebase.auth ? window.firebase.auth(app) : null;
     return true;
   } catch (error) {
     console.warn('Firebase init failed:', error);
     state.firestore = null;
     state.storage = null;
+    state.auth = null;
     return false;
   }
+}
+
+function authDisplayName() {
+  return state.authUser?.displayName || state.authUser?.email?.split('@')[0] || '사용자';
+}
+
+function initAuthListener() {
+  if (!state.auth) return;
+
+  state.auth.onAuthStateChanged(async (user) => {
+    state.authUser = user || null;
+
+    if (user && state.user) {
+      state.user = {
+        ...state.user,
+        id: user.uid,
+        name: state.user.name || authDisplayName()
+      };
+      persistLocalData();
+    }
+
+    if (user && !state.couple && inviteCode) {
+      localStorage.setItem(STORAGE_KEYS.pendingInvite, inviteCode.toUpperCase());
+      await joinCoupleByCode(inviteCode.toUpperCase());
+    } else if (user && state.couple) {
+      await saveCoupleRemote();
+      startRealtimeSync();
+    }
+
+    renderAll();
+  });
 }
 
 function coupleDoc() {
@@ -286,6 +332,54 @@ async function loadRemoteData() {
   }
 }
 
+function stopRealtimeSync() {
+  if (state.unsubMessages) state.unsubMessages();
+  if (state.unsubEvents) state.unsubEvents();
+  state.unsubMessages = null;
+  state.unsubEvents = null;
+}
+
+function startRealtimeSync() {
+  const doc = coupleDoc();
+  if (!doc || !state.user) return;
+
+  stopRealtimeSync();
+
+  state.unsubMessages = doc.collection('messages').orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
+    state.messages = snapshot.docs.map((item) => item.data());
+    persistLocalData();
+    renderMessages();
+    markVisibleMessagesRead(snapshot.docs);
+  }, (error) => {
+    console.warn('Messages realtime sync failed:', error);
+    els.chatStatus.textContent = '실시간 채팅 연결에 실패했습니다.';
+  });
+
+  state.unsubEvents = doc.collection('events').orderBy('date', 'asc').onSnapshot((snapshot) => {
+    state.events = snapshot.docs.map((item) => item.data());
+    persistLocalData();
+    renderEvents();
+  }, (error) => {
+    console.warn('Events realtime sync failed:', error);
+  });
+}
+
+function markVisibleMessagesRead(messageDocs) {
+  if (!state.user?.id) return;
+
+  messageDocs.forEach((doc) => {
+    const message = doc.data();
+    if (message.senderId === state.user.id) return;
+    if (message.readBy?.[state.user.id]) return;
+
+    doc.ref.update({
+      [`readBy.${state.user.id}`]: new Date().toISOString()
+    }).catch((error) => {
+      console.warn('Read receipt update failed:', error);
+    });
+  });
+}
+
 function persistLocalData() {
   writeJson(STORAGE_KEYS.session, { user: state.user, couple: state.couple });
   writeJson(STORAGE_KEYS.messages, state.messages);
@@ -305,14 +399,27 @@ function updateFirebaseConfig(config) {
 
 function renderConnection() {
   const connected = Boolean(state.user && state.couple);
-  els.profileBadge.textContent = connected ? `${state.user.name} · ${state.couple.code}` : '커플 연결';
+  const loggedIn = Boolean(state.authUser);
+  els.profileBadge.textContent = connected ? `${state.user.name} · ${state.couple.code}` : (loggedIn ? authDisplayName() : 'Google 로그인');
   els.homeCode.textContent = connected ? state.couple.code : '연결 전';
-  els.homeConnection.textContent = connected ? `${state.user.name}님의 커플 공간입니다.` : '설정에서 커플 공간을 먼저 만들어주세요.';
+  els.homeConnection.textContent = connected ? `${state.user.name}님의 커플 공간입니다. 초대 링크를 공유하세요.` : '설정에서 Google 로그인 후 커플 공간을 만들어주세요.';
   els.copyCodeBtn.disabled = !connected;
-  els.copyCodeBtn.textContent = connected ? '코드 복사' : '연결 필요';
+  els.copyCodeBtn.textContent = connected ? '초대 링크 복사' : '연결 필요';
   els.connectionState.textContent = connected ? '연결됨' : '미연결';
-  els.connectionStatus.textContent = connected ? `커플 코드 ${state.couple.code}로 연결되었습니다. 이 코드를 상대에게 공유하세요.` : '한 명이 새 커플을 만들고, 상대는 같은 코드를 입력해 참여하면 됩니다.';
-  els.chatStatus.textContent = connected ? '한국어와 태국어를 자동 감지해 번역합니다.' : '커플 연결 후 메시지를 보낼 수 있습니다.';
+  els.connectionStatus.textContent = connected ? `커플 코드 ${state.couple.code}로 연결되었습니다. 초대 링크를 상대에게 공유하세요.` : 'Google 로그인 후 새 커플을 만들면 상대가 링크로 자동 참여할 수 있습니다.';
+  els.chatStatus.textContent = connected ? '실시간으로 메시지를 동기화합니다.' : 'Google 로그인과 커플 연결 후 메시지를 보낼 수 있습니다.';
+
+  if (els.profileName && loggedIn && !els.profileName.value) {
+    els.profileName.placeholder = `${authDisplayName()} (기본 이름)`;
+  }
+
+  if (els.authStatus) {
+    els.authStatus.textContent = loggedIn
+      ? `${authDisplayName()} 계정으로 로그인됨`
+      : '로그인하면 다른 기기에서도 같은 커플 공간을 사용할 수 있습니다.';
+  }
+  if (els.googleLoginBtn) els.googleLoginBtn.hidden = loggedIn;
+  if (els.logoutBtn) els.logoutBtn.hidden = !loggedIn;
 }
 
 function renderSettings() {
@@ -376,11 +483,14 @@ function renderMessages() {
     const sender = document.createElement('strong');
     const text = document.createElement('p');
     const translated = document.createElement('small');
+    const receipt = document.createElement('em');
     sender.textContent = message.senderName || '상대';
     text.textContent = message.text;
     translated.textContent = message.translatedText || '';
+    receipt.className = 'read-receipt';
+    receipt.textContent = mine && Object.keys(message.readBy || {}).some((uid) => uid !== message.senderId) ? '읽음' : '';
 
-    bubble.append(sender, text, translated);
+    bubble.append(sender, text, translated, receipt);
     els.messageList.appendChild(bubble);
   });
 
@@ -485,24 +595,38 @@ function renderAll() {
 
 async function createOrJoinCouple(event) {
   event.preventDefault();
+  if (!state.authUser) {
+    els.connectionStatus.textContent = '먼저 Google 로그인을 해주세요.';
+    return;
+  }
+
   const action = event.submitter?.value || 'create';
-  const name = els.profileName.value.trim();
+  const name = els.profileName.value.trim() || authDisplayName();
   const code = els.partnerCode.value.trim().toUpperCase();
 
-  if (!name) return;
   if (action === 'join' && !code) {
     els.connectionStatus.textContent = '참여하려면 커플 코드를 입력해주세요.';
     return;
   }
 
   const coupleCode = action === 'join' ? code : makeCode();
+  await connectToCouple(coupleCode, name, action === 'join' ? 'partner' : 'owner');
+}
+
+async function joinCoupleByCode(code) {
+  if (!state.authUser || !code) return;
+  await connectToCouple(code, authDisplayName(), 'partner');
+}
+
+async function connectToCouple(code, name, role) {
+  const coupleCode = code.trim().toUpperCase();
   const couple = { id: `couple-${coupleCode.toLowerCase()}`, code: coupleCode };
 
   state.user = {
-    id: makeId('user'),
+    id: state.authUser.uid,
     name,
     coupleId: couple.id,
-    role: action === 'join' ? 'partner' : 'owner'
+    role
   };
   state.couple = couple;
   state.messages = [];
@@ -521,6 +645,7 @@ async function createOrJoinCouple(event) {
   }
 
   await loadRemoteData();
+  startRealtimeSync();
   renderAll();
 }
 
@@ -549,6 +674,9 @@ async function sendMessage(event) {
     source: translation.source,
     target: translation.target,
     engine: translation.engine,
+    readBy: {
+      [state.user.id]: new Date().toISOString()
+    },
     createdAt: new Date().toISOString()
   };
 
@@ -574,12 +702,22 @@ function saveMood(value) {
   renderMood();
 }
 
+function inviteLink() {
+  if (!state.couple?.code) return '';
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('invite', state.couple.code);
+  return url.toString();
+}
+
 async function copyCoupleCode() {
   if (!state.couple?.code) return;
+  const link = inviteLink();
 
   try {
-    await navigator.clipboard.writeText(state.couple.code);
-    els.copyCodeBtn.textContent = '복사됨';
+    await navigator.clipboard.writeText(link);
+    els.copyCodeBtn.textContent = '링크 복사됨';
   } catch {
     els.copyCodeBtn.textContent = state.couple.code;
   }
@@ -587,6 +725,52 @@ async function copyCoupleCode() {
   window.setTimeout(() => {
     renderConnection();
   }, 1400);
+}
+
+async function loginWithGoogle() {
+  if (!state.auth) {
+    els.authStatus.textContent = 'Firebase Auth가 아직 준비되지 않았습니다.';
+    return;
+  }
+
+  try {
+    const provider = new window.firebase.auth.GoogleAuthProvider();
+    await state.auth.signInWithPopup(provider);
+  } catch (error) {
+    console.warn('Google login failed:', error);
+    els.authStatus.textContent = 'Google 로그인이 실패했습니다. Firebase Auth의 Google 제공업체가 켜져 있는지 확인해주세요.';
+  }
+}
+
+async function logout() {
+  stopRealtimeSync();
+  await state.auth?.signOut();
+  state.authUser = null;
+  state.user = null;
+  state.couple = null;
+  state.messages = [];
+  state.events = [];
+  persistLocalData();
+  renderAll();
+}
+
+function exportChatText() {
+  if (!state.messages.length) {
+    els.chatStatus.textContent = '저장할 채팅이 없습니다.';
+    return;
+  }
+
+  const lines = state.messages.map((message) => [
+    `[${new Date(message.createdAt).toLocaleString('ko-KR')}] ${message.senderName}`,
+    message.text,
+    message.translatedText ? `=> ${message.translatedText}` : ''
+  ].filter(Boolean).join('\n'));
+  const blob = new Blob([lines.join('\n\n')], { type: 'text/plain;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `lovebridge-${state.couple?.code || 'chat'}.txt`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 async function addEvent(event) {
@@ -722,7 +906,7 @@ function clearChat() {
 function switchView(viewId) {
   els.tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === viewId));
   els.views.forEach((view) => view.classList.toggle('active', view.id === viewId));
-  if (state.user && state.couple && ['chat', 'calendar', 'milestones', 'home'].includes(viewId)) {
+  if (state.authUser && state.user && state.couple && ['chat', 'calendar', 'milestones', 'home'].includes(viewId)) {
     loadRemoteData().then((loaded) => {
       if (loaded) renderAll();
     });
@@ -753,6 +937,8 @@ function bindEvents() {
 
   els.profileBadge.addEventListener('click', () => switchView('settings'));
   els.copyCodeBtn.addEventListener('click', copyCoupleCode);
+  els.googleLoginBtn.addEventListener('click', loginWithGoogle);
+  els.logoutBtn.addEventListener('click', logout);
   els.profileForm.addEventListener('submit', createOrJoinCouple);
   els.chatForm.addEventListener('submit', sendMessage);
   els.eventForm.addEventListener('submit', addEvent);
@@ -761,7 +947,7 @@ function bindEvents() {
   els.uploadMemoryBtn.addEventListener('click', uploadMemoryPhoto);
   els.saveStartDateBtn.addEventListener('click', saveStartDate);
   els.generateMessageBtn.addEventListener('click', generateMilestoneMessage);
-  els.clearChatBtn.addEventListener('click', clearChat);
+  els.exportChatBtn.addEventListener('click', exportChatText);
 }
 
 async function boot() {
@@ -780,11 +966,12 @@ async function boot() {
   state.startDate = localStorage.getItem(STORAGE_KEYS.startDate) || '';
 
   initFirebase();
-  if (state.user && state.couple) {
-    await loadRemoteData();
+  if (inviteCode) {
+    els.partnerCode.value = inviteCode.toUpperCase();
+    localStorage.setItem(STORAGE_KEYS.pendingInvite, inviteCode.toUpperCase());
   }
-
   bindEvents();
+  initAuthListener();
   renderAll();
 }
 

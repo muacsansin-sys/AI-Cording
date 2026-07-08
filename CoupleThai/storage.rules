@@ -2,6 +2,10 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
@@ -11,11 +15,12 @@ service firebase.storage {
     }
 
     match /couples/{coupleId}/memories/{fileName} {
-      allow read: if true;
-      allow write: if isImage()
+      allow read: if signedIn();
+      allow write: if signedIn()
+        && isImage()
         && isSmallEnough()
         && request.resource.metadata.coupleId == coupleId
-        && request.resource.metadata.uploaderId is string
+        && request.resource.metadata.uploaderId == request.auth.uid
         && request.resource.metadata.uploaderName is string;
       allow delete: if false;
     }

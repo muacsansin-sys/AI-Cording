@@ -8,7 +8,9 @@
 - 한국어/태국어 자동 감지 및 번역
 - Vercel 서버리스 API를 통한 Gemini 번역
 - Gemini 실패 또는 환경변수 미설정 시 fallback 번역
-- 커플 코드 생성/참여 흐름
+- Google 로그인
+- 초대 링크 기반 자동 커플 연결
+- 실시간 채팅, 읽음 표시, 채팅 TXT 저장
 - 오늘 기분 공유
 - 일정 추가 및 기념일 D-day 계산
 - LocalStorage 기반 세션 유지
@@ -63,6 +65,12 @@ couples/{coupleId}/events/{eventId}
 ```
 
 Storage bucket 기본값은 `lovethai-2ddbc.firebasestorage.app`입니다.
+
+Google 로그인을 사용하려면 Firebase Console에서 Authentication의 Google 제공업체를 활성화하고, Authorized domains에 배포 도메인을 추가해야 합니다.
+
+```text
+lovebridge-couplethai.vercel.app
+```
 
 규칙 파일은 프로젝트에 포함되어 있습니다.
 

@@ -2,6 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
     function hasOnlyFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
     }
@@ -27,6 +31,7 @@ service cloud.firestore {
 
     function validMember() {
       return hasOnlyFields(['id', 'name', 'coupleId', 'role', 'updatedAt'])
+        && request.resource.data.id == request.auth.uid
         && isStringField('id', 80)
         && isStringField('name', 40)
         && isStringField('coupleId', 100)
@@ -37,10 +42,11 @@ service cloud.firestore {
     function validMessage(coupleId) {
       return hasOnlyFields([
           'id', 'coupleId', 'senderId', 'senderName', 'text',
-          'translatedText', 'source', 'target', 'engine', 'createdAt'
+          'translatedText', 'source', 'target', 'engine', 'readBy', 'createdAt'
         ])
         && request.resource.data.coupleId == coupleId
         && isStringField('id', 100)
+        && request.resource.data.senderId == request.auth.uid
         && isStringField('senderId', 100)
         && isStringField('senderName', 40)
         && isStringField('text', 1000)
@@ -48,6 +54,7 @@ service cloud.firestore {
         && request.resource.data.source in ['ko', 'th']
         && request.resource.data.target in ['ko', 'th']
         && isOptionalStringField('engine', 40)
+        && request.resource.data.readBy is map
         && isStringField('createdAt', 40);
     }
 
@@ -62,25 +69,27 @@ service cloud.firestore {
     }
 
     match /couples/{coupleId} {
-      allow get, list: if true;
-      allow create, update: if validCouple(coupleId);
+      allow get, list: if signedIn();
+      allow create, update: if signedIn() && validCouple(coupleId);
       allow delete: if false;
 
       match /members/{memberId} {
-        allow get, list: if true;
-        allow create, update: if validMember();
+        allow get, list: if signedIn();
+        allow create, update: if signedIn() && memberId == request.auth.uid && validMember();
         allow delete: if false;
       }
 
       match /messages/{messageId} {
-        allow get, list: if true;
-        allow create, update: if validMessage(coupleId);
+        allow get, list: if signedIn();
+        allow create: if signedIn() && validMessage(coupleId);
+        allow update: if signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
         allow delete: if false;
       }
 
       match /events/{eventId} {
-        allow get, list: if true;
-        allow create, update: if validEvent(coupleId);
+        allow get, list: if signedIn();
+        allow create, update: if signedIn() && validEvent(coupleId);
         allow delete: if false;
       }
     }

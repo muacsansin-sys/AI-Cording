@@ -186,6 +186,12 @@ p {
   font-weight: 800;
 }
 
+.panel-form .secondary-button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
 .hero-action {
   width: fit-content;
   background: #fff;
@@ -398,13 +404,15 @@ p {
 }
 
 .round-button {
-  width: 40px;
+  min-width: 44px;
   height: 40px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
   color: var(--text);
   font-size: 1.05rem;
+  font-weight: 900;
+  padding: 0 10px;
 }
 
 .message-list {
@@ -464,6 +472,19 @@ p {
   color: inherit;
   opacity: 0.72;
   line-height: 1.45;
+}
+
+.read-receipt {
+  display: block;
+  min-height: 14px;
+  margin-top: 2px;
+  color: inherit;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.62;
+  text-align: right;
 }
 
 .quick-actions {
