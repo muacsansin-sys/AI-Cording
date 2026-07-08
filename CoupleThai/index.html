@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="LoveBridge" />
+    <title>LoveBridge</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span>LoveBridge</span>
+          <strong>한국어 · ภาษาไทย</strong>
+        </div>
+        <button id="profileBadge" class="couple-chip" type="button">커플 연결</button>
+      </header>
+
+      <main class="app-main">
+        <section id="home" class="view active" aria-labelledby="homeTitle">
+          <div class="home-hero">
+            <div>
+              <p class="eyebrow">오늘의 연결</p>
+              <h1 id="homeTitle">말은 번역하고, 마음은 그대로.</h1>
+              <p>여자친구와 매일 연락하고, 약속과 기념일을 한곳에서 관리하세요.</p>
+            </div>
+            <button class="hero-action" type="button" data-jump="chat">바로 대화</button>
+          </div>
+
+          <section class="today-panel">
+            <div class="today-card primary">
+              <span>우리 코드</span>
+              <strong id="homeCode">연결 전</strong>
+              <p id="homeConnection">설정에서 커플 공간을 먼저 만들어주세요.</p>
+            </div>
+            <div class="today-card">
+              <span>다음 약속</span>
+              <strong id="nextEvent">일정 없음</strong>
+              <p id="nextEventDetail">데이트, 통화, 여행 일정을 추가하세요.</p>
+            </div>
+          </section>
+
+          <section class="care-panel">
+            <div class="section-heading">
+              <h2>오늘 챙길 것</h2>
+              <span id="todayBadge">Daily</span>
+            </div>
+            <button class="care-item" type="button" data-quick="안녕, 오늘 하루 어땠어?">
+              <span>안부 보내기</span>
+              <strong>상대 언어로 바로 번역</strong>
+            </button>
+            <button class="care-item" type="button" data-quick="보고 싶어. 오늘도 네 생각 많이 했어.">
+              <span>다정한 말</span>
+              <strong>짧게 보내기 좋은 문장</strong>
+            </button>
+            <p id="aiSuggestion" class="soft-note">먼저 커플을 연결하면 채팅과 일정이 둘만의 공간에 저장됩니다.</p>
+          </section>
+
+          <section class="status-grid">
+            <div>
+              <span>번역</span>
+              <strong id="translationMode">Gemini</strong>
+            </div>
+            <div>
+              <span>저장</span>
+              <strong id="storageMode">Local</strong>
+            </div>
+            <div>
+              <span>Firebase</span>
+              <strong id="firebaseMode">대기</strong>
+            </div>
+          </section>
+        </section>
+
+        <section id="chat" class="view" aria-labelledby="chatTitle">
+          <div class="screen-head">
+            <div>
+              <p class="eyebrow">Translate chat</p>
+              <h1 id="chatTitle">번역 채팅</h1>
+            </div>
+            <button id="clearChatBtn" class="round-button" type="button" aria-label="채팅 비우기">↺</button>
+          </div>
+
+          <p id="chatStatus" class="screen-status">커플 연결 후 메시지를 보낼 수 있습니다.</p>
+          <div id="messageList" class="message-list" aria-live="polite"></div>
+
+          <div class="quick-actions" aria-label="빠른 메시지">
+            <button type="button" class="quick-pill" data-text="안녕, 오늘 하루 어땠어?">안부</button>
+            <button type="button" class="quick-pill" data-text="보고 싶어">보고싶어</button>
+            <button type="button" class="quick-pill" data-text="ขอบคุณนะ">고마워</button>
+            <button type="button" class="quick-pill" data-text="รักนะ">사랑해</button>
+          </div>
+
+          <form id="chatForm" class="composer">
+            <input id="chatInput" type="text" placeholder="한국어 또는 태국어로 입력" autocomplete="off" />
+            <button type="submit">전송</button>
+          </form>
+        </section>
+
+        <section id="calendar" class="view" aria-labelledby="calendarTitle">
+          <div class="screen-head">
+            <div>
+              <p class="eyebrow">Plans</p>
+              <h1 id="calendarTitle">둘만의 일정</h1>
+            </div>
+          </div>
+
+          <form id="eventForm" class="panel-form">
+            <input id="eventTitle" type="text" placeholder="예: 금요일 영상통화" required />
+            <div class="form-row">
+              <input id="eventDate" type="date" required />
+              <select id="eventType" aria-label="일정 종류">
+                <option value="date">데이트</option>
+                <option value="anniversary">기념일</option>
+                <option value="travel">여행</option>
+                <option value="call">영상통화</option>
+              </select>
+            </div>
+            <button type="submit">일정 추가</button>
+          </form>
+
+          <div id="eventList" class="timeline"></div>
+        </section>
+
+        <section id="milestones" class="view" aria-labelledby="milestonesTitle">
+          <div class="screen-head">
+            <div>
+              <p class="eyebrow">Milestones</p>
+              <h1 id="milestonesTitle">기념일</h1>
+            </div>
+            <strong id="daysTogether" class="days-pill">D+0</strong>
+          </div>
+
+          <section class="panel-form">
+            <label class="field-label" for="startDateInput">처음 만난 날</label>
+            <div class="form-row">
+              <input id="startDateInput" type="date" />
+              <button id="saveStartDateBtn" type="button">저장</button>
+            </div>
+          </section>
+
+          <section class="message-draft">
+            <div class="section-heading">
+              <h2>보낼 말 초안</h2>
+              <button id="generateMessageBtn" type="button">새로</button>
+            </div>
+            <p id="milestoneMessage">기념일을 설정하면 다정한 메시지 초안을 추천합니다.</p>
+          </section>
+
+          <div id="milestoneList" class="milestone-grid"></div>
+        </section>
+
+        <section id="settings" class="view" aria-labelledby="settingsTitle">
+          <div class="screen-head">
+            <div>
+              <p class="eyebrow">Settings</p>
+              <h1 id="settingsTitle">설정</h1>
+            </div>
+            <span id="connectionState" class="subtle-pill">미연결</span>
+          </div>
+
+          <section class="settings-panel">
+            <h2>커플 연결</h2>
+            <form id="profileForm" class="panel-form flat">
+              <input id="profileName" type="text" placeholder="내 이름" required />
+              <input id="partnerCode" type="text" placeholder="참여할 커플 코드" />
+              <div class="button-row">
+                <button type="submit" name="action" value="create">새 커플 만들기</button>
+                <button type="submit" name="action" value="join">코드로 참여</button>
+              </div>
+            </form>
+            <p id="connectionStatus" class="soft-note">아직 커플이 연결되지 않았습니다.</p>
+          </section>
+
+          <section class="settings-panel">
+            <h2>Gemini 번역</h2>
+            <form id="apiConfigForm" class="panel-form flat">
+              <input id="apiKeyInput" type="password" placeholder="로컬 테스트용 API Key 선택 입력" autocomplete="off" />
+              <input id="modelInput" type="text" placeholder="gemini-1.5-flash" />
+              <button type="submit">번역 설정 저장</button>
+            </form>
+            <p id="apiStatus" class="soft-note">배포 환경에서는 Vercel 환경변수 GEMINI_API_KEY로 번역합니다.</p>
+          </section>
+
+          <section class="settings-panel">
+            <h2>Firebase / Firestore</h2>
+            <form id="firebaseConfigForm" class="panel-form flat">
+              <input id="firebaseApiKeyInput" type="password" placeholder="Firebase API Key" autocomplete="off" />
+              <input id="firebaseAuthDomainInput" type="text" placeholder="Auth Domain" />
+              <input id="firebaseProjectIdInput" type="text" placeholder="Project ID" />
+              <input id="firebaseStorageBucketInput" type="text" placeholder="Storage Bucket" />
+              <input id="firebaseMessagingSenderIdInput" type="text" placeholder="Messaging Sender ID" />
+              <input id="firebaseAppIdInput" type="text" placeholder="App ID" />
+              <button type="submit">Firebase 설정 저장</button>
+            </form>
+            <p id="firebaseConfigStatus" class="soft-note">Firebase 값을 입력하면 Firestore 저장을 시도합니다.</p>
+          </section>
+        </section>
+      </main>
+
+      <nav class="bottom-tabs" aria-label="하단 메뉴">
+        <button class="tab active" data-view="home" type="button"><span>⌂</span>홈</button>
+        <button class="tab" data-view="chat" type="button"><span>✉</span>채팅</button>
+        <button class="tab" data-view="calendar" type="button"><span>□</span>일정</button>
+        <button class="tab" data-view="milestones" type="button"><span>♡</span>기념일</button>
+        <button class="tab" data-view="settings" type="button"><span>⚙</span>설정</button>
+      </nav>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="demo-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
