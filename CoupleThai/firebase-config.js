@@ -1,8 +1,8 @@
 const defaultFirebaseConfig = {
   apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
+  authDomain: "lovethai-2ddbc.firebaseapp.com",
+  projectId: "lovethai-2ddbc",
+  storageBucket: "lovethai-2ddbc.firebasestorage.app",
   messagingSenderId: "",
   appId: ""
 };

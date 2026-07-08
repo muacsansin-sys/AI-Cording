@@ -51,6 +51,10 @@ const els = {
   firebaseMessagingSenderIdInput: $('#firebaseMessagingSenderIdInput'),
   firebaseAppIdInput: $('#firebaseAppIdInput'),
   firebaseConfigStatus: $('#firebaseConfigStatus'),
+  memoryFileInput: $('#memoryFileInput'),
+  uploadMemoryBtn: $('#uploadMemoryBtn'),
+  memoryUploadStatus: $('#memoryUploadStatus'),
+  lastMemoryLink: $('#lastMemoryLink'),
   startDateInput: $('#startDateInput'),
   saveStartDateBtn: $('#saveStartDateBtn'),
   daysTogether: $('#daysTogether'),
@@ -66,7 +70,8 @@ const state = {
   events: [],
   translation: { apiKey: DEFAULT_GEMINI_API_KEY, model: DEFAULT_MODEL },
   startDate: '',
-  firestore: null
+  firestore: null,
+  storage: null
 };
 
 function readJson(key, fallback) {
@@ -213,10 +218,12 @@ function initFirebase() {
   try {
     const app = window.firebase.apps?.length ? window.firebase.app() : window.firebase.initializeApp(window.firebaseConfig);
     state.firestore = window.firebase.firestore(app);
+    state.storage = window.firebase.storage ? window.firebase.storage(app) : null;
     return true;
   } catch (error) {
     console.warn('Firebase init failed:', error);
     state.firestore = null;
+    state.storage = null;
     return false;
   }
 }
@@ -286,6 +293,7 @@ function updateFirebaseConfig(config) {
   window.firebaseConfig = { ...(window.firebaseConfig || {}), ...config };
   localStorage.setItem('lovebridge-firebase-config', JSON.stringify(window.firebaseConfig));
   state.firestore = null;
+  state.storage = null;
   return initFirebase();
 }
 
@@ -301,12 +309,13 @@ function renderConnection() {
 
 function renderSettings() {
   const firebaseReady = Boolean(state.firestore);
+  const storageReady = Boolean(state.storage);
   els.translationMode.textContent = state.translation.apiKey ? 'Gemini' : 'Fallback';
   if (window.location.protocol !== 'file:') {
     els.translationMode.textContent = 'Gemini';
   }
   els.storageMode.textContent = firebaseReady ? 'Cloud' : 'Local';
-  els.firebaseMode.textContent = firebaseReady ? '연결됨' : '대기';
+  els.firebaseMode.textContent = firebaseReady || storageReady ? '연결됨' : '대기';
   els.apiKeyInput.value = state.translation.apiKey || '';
   els.modelInput.value = state.translation.model || DEFAULT_MODEL;
   els.apiStatus.textContent = window.location.protocol === 'file:'
@@ -320,7 +329,12 @@ function renderSettings() {
   els.firebaseStorageBucketInput.value = config.storageBucket || '';
   els.firebaseMessagingSenderIdInput.value = config.messagingSenderId || '';
   els.firebaseAppIdInput.value = config.appId || '';
-  els.firebaseConfigStatus.textContent = firebaseReady ? 'Firestore 저장이 활성화되었습니다.' : 'Firebase 값을 입력하면 Firestore 저장을 시도합니다.';
+  els.firebaseConfigStatus.textContent = firebaseReady
+    ? 'Firestore와 Storage 연결이 준비되었습니다.'
+    : 'Firebase Web App의 apiKey/appId까지 입력하면 Firestore와 Storage 연결을 시도합니다.';
+  els.memoryUploadStatus.textContent = storageReady
+    ? 'Storage 연결됨. 커플 연결 후 사진을 업로드할 수 있습니다.'
+    : 'Storage bucket: lovethai-2ddbc.firebasestorage.app';
 }
 
 function renderMessages() {
@@ -597,6 +611,48 @@ function saveFirebaseSettings(event) {
     : '설정은 저장했지만 Firebase 연결은 아직 완료되지 않았습니다.';
 }
 
+async function uploadMemoryPhoto() {
+  if (!state.storage) {
+    els.memoryUploadStatus.textContent = 'Firebase Web App 설정을 먼저 완료해주세요. apiKey와 appId가 필요합니다.';
+    return;
+  }
+
+  if (!state.user || !state.couple) {
+    els.memoryUploadStatus.textContent = '커플 연결 후 사진을 업로드할 수 있습니다.';
+    return;
+  }
+
+  const file = els.memoryFileInput.files?.[0];
+  if (!file) {
+    els.memoryUploadStatus.textContent = '업로드할 사진을 선택해주세요.';
+    return;
+  }
+
+  try {
+    els.memoryUploadStatus.textContent = '사진 업로드 중...';
+    const safeName = file.name.replace(/[^\w.-]+/g, '-');
+    const path = `couples/${state.couple.id}/memories/${Date.now()}-${safeName}`;
+    const ref = state.storage.ref().child(path);
+    await ref.put(file, {
+      contentType: file.type || 'application/octet-stream',
+      customMetadata: {
+        coupleId: state.couple.id,
+        uploaderId: state.user.id,
+        uploaderName: state.user.name
+      }
+    });
+    const url = await ref.getDownloadURL();
+
+    els.lastMemoryLink.href = url;
+    els.lastMemoryLink.hidden = false;
+    els.memoryUploadStatus.textContent = '사진 업로드 완료. Storage에 저장되었습니다.';
+    els.memoryFileInput.value = '';
+  } catch (error) {
+    console.warn('Storage upload failed:', error);
+    els.memoryUploadStatus.textContent = `업로드 실패: ${error.message}`;
+  }
+}
+
 function saveStartDate() {
   state.startDate = els.startDateInput.value;
   persistLocalData();
@@ -654,6 +710,7 @@ function bindEvents() {
   els.eventForm.addEventListener('submit', addEvent);
   els.apiConfigForm.addEventListener('submit', saveTranslationSettings);
   els.firebaseConfigForm.addEventListener('submit', saveFirebaseSettings);
+  els.uploadMemoryBtn.addEventListener('click', uploadMemoryPhoto);
   els.saveStartDateBtn.addEventListener('click', saveStartDate);
   els.generateMessageBtn.addEventListener('click', generateMilestoneMessage);
   els.clearChatBtn.addEventListener('click', clearChat);

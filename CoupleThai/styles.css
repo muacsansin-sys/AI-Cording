@@ -537,6 +537,19 @@ p {
   color: white;
 }
 
+.memory-link {
+  display: inline-flex;
+  margin-top: 10px;
+  color: var(--blue);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.memory-link:hover {
+  text-decoration: underline;
+}
+
 .bottom-tabs {
   position: fixed;
   left: 50%;

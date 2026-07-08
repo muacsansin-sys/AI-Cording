@@ -183,7 +183,7 @@
           <section class="settings-panel">
             <h2>Gemini 번역</h2>
             <form id="apiConfigForm" class="panel-form flat">
-              <input id="apiKeyInput" type="password" placeholder="로컬 테스트용 API Key 선택 입력" autocomplete="off" />
+              <input id="apiKeyInput" type="hidden" autocomplete="off" />
               <input id="modelInput" type="text" placeholder="gemini-2.5-flash" />
               <button type="submit">번역 설정 저장</button>
             </form>
@@ -203,6 +203,16 @@
             </form>
             <p id="firebaseConfigStatus" class="soft-note">Firebase 값을 입력하면 Firestore 저장을 시도합니다.</p>
           </section>
+
+          <section class="settings-panel">
+            <h2>Firebase Storage</h2>
+            <div class="panel-form flat">
+              <input id="memoryFileInput" type="file" accept="image/*" />
+              <button id="uploadMemoryBtn" type="button">사진 업로드</button>
+            </div>
+            <p id="memoryUploadStatus" class="soft-note">Storage bucket: lovethai-2ddbc.firebasestorage.app</p>
+            <a id="lastMemoryLink" class="memory-link" href="#" target="_blank" rel="noreferrer" hidden>업로드한 사진 열기</a>
+          </section>
         </section>
       </main>
 
@@ -217,6 +227,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="demo-data.js"></script>
     <script src="client.js"></script>
