@@ -307,6 +307,44 @@ p {
   text-align: right;
 }
 
+.mood-check {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #ffd4dd;
+  border-radius: var(--radius);
+  background: var(--rose-soft);
+}
+
+.mood-check strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.mood-check p {
+  margin: 0;
+  color: #8a4050;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.mood-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.mood-buttons button {
+  min-height: 38px;
+  border: 1px solid rgba(224, 82, 111, 0.28);
+  border-radius: 999px;
+  background: #fff;
+  color: #b42345;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -550,6 +588,66 @@ p {
   text-decoration: underline;
 }
 
+.simple-settings {
+  background: #f8fafc;
+}
+
+.settings-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.settings-summary div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-summary span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.settings-summary strong {
+  display: block;
+  margin: 4px 0;
+  font-size: 1rem;
+}
+
+.settings-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.advanced-settings {
+  margin-bottom: 12px;
+}
+
+.advanced-settings summary {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.advanced-settings[open] summary {
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
 .bottom-tabs {
   position: fixed;
   left: 50%;
@@ -622,7 +720,9 @@ p {
 @media (max-width: 360px) {
   .today-panel,
   .button-row,
-  .quick-actions {
+  .quick-actions,
+  .mood-buttons,
+  .settings-summary {
     grid-template-columns: 1fr;
   }
 

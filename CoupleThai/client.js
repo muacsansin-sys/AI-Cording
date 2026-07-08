@@ -3,7 +3,8 @@ const STORAGE_KEYS = {
   messages: 'lovebridge.messages',
   events: 'lovebridge.events',
   settings: 'lovebridge.translation',
-  startDate: 'lovebridge.startDate'
+  startDate: 'lovebridge.startDate',
+  mood: 'lovebridge.mood'
 };
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -21,8 +22,10 @@ const els = {
   nextEvent: $('#nextEvent'),
   nextEventDetail: $('#nextEventDetail'),
   aiSuggestion: $('#aiSuggestion'),
+  moodStatus: $('#moodStatus'),
   translationMode: $('#translationMode'),
   storageMode: $('#storageMode'),
+  settingsStorageSummary: $('#settingsStorageSummary'),
   firebaseMode: $('#firebaseMode'),
   messageList: $('#messageList'),
   chatForm: $('#chatForm'),
@@ -70,6 +73,7 @@ const state = {
   events: [],
   translation: { apiKey: DEFAULT_GEMINI_API_KEY, model: DEFAULT_MODEL },
   startDate: '',
+  mood: null,
   firestore: null,
   storage: null
 };
@@ -286,6 +290,7 @@ function persistLocalData() {
   writeJson(STORAGE_KEYS.messages, state.messages);
   writeJson(STORAGE_KEYS.events, state.events);
   writeJson(STORAGE_KEYS.settings, state.translation);
+  writeJson(STORAGE_KEYS.mood, state.mood);
   localStorage.setItem(STORAGE_KEYS.startDate, state.startDate || '');
 }
 
@@ -310,17 +315,18 @@ function renderConnection() {
 function renderSettings() {
   const firebaseReady = Boolean(state.firestore);
   const storageReady = Boolean(state.storage);
-  els.translationMode.textContent = state.translation.apiKey ? 'Gemini' : 'Fallback';
-  if (window.location.protocol !== 'file:') {
-    els.translationMode.textContent = 'Gemini';
-  }
+  const serverReady = window.location.protocol !== 'file:';
+  els.translationMode.textContent = serverReady || state.translation.apiKey ? 'Gemini' : 'Fallback';
   els.storageMode.textContent = firebaseReady ? 'Cloud' : 'Local';
+  if (els.settingsStorageSummary) {
+    els.settingsStorageSummary.textContent = firebaseReady ? '클라우드' : '로컬';
+  }
   els.firebaseMode.textContent = firebaseReady || storageReady ? '연결됨' : '대기';
   els.apiKeyInput.value = state.translation.apiKey || '';
   els.modelInput.value = state.translation.model || DEFAULT_MODEL;
-  els.apiStatus.textContent = window.location.protocol === 'file:'
-    ? '배포 환경에서는 Vercel 환경변수 GEMINI_API_KEY로 번역합니다.'
-    : `${state.translation.model || DEFAULT_MODEL} 모델과 Vercel 서버 API로 번역합니다.`;
+  els.apiStatus.textContent = serverReady
+    ? `${state.translation.model || DEFAULT_MODEL} 모델과 서버에 저장된 Gemini 키로 번역합니다.`
+    : '로컬 파일로 열면 서버 번역을 사용할 수 없습니다. 배포 주소에서 기본 키로 번역됩니다.';
 
   const config = window.firebaseConfig || {};
   els.firebaseApiKeyInput.value = config.apiKey || '';
@@ -335,6 +341,20 @@ function renderSettings() {
   els.memoryUploadStatus.textContent = storageReady
     ? 'Storage 연결됨. 커플 연결 후 사진을 업로드할 수 있습니다.'
     : 'Storage bucket: lovethai-2ddbc.firebasestorage.app';
+}
+
+function renderMood() {
+  if (!els.moodStatus) return;
+  if (!state.mood) {
+    els.moodStatus.textContent = '아직 공유한 기분이 없습니다.';
+    return;
+  }
+
+  const time = new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(state.mood.updatedAt));
+  els.moodStatus.textContent = `${state.mood.value} · ${time}에 저장됨`;
 }
 
 function renderMessages() {
@@ -453,6 +473,7 @@ function renderSuggestions() {
 function renderAll() {
   renderConnection();
   renderSettings();
+  renderMood();
   renderMessages();
   renderEvents();
   renderMilestones();
@@ -549,7 +570,16 @@ async function sendMessage(event) {
     console.warn('Message remote save failed:', error);
   }
 
-  els.chatStatus.textContent = translation.engine === 'gemini' ? 'Gemini 번역 완료' : 'Fallback 번역 완료';
+  els.chatStatus.textContent = translation.engine.includes('gemini') ? 'Gemini 번역 완료' : 'Fallback 번역 완료';
+}
+
+function saveMood(value) {
+  state.mood = {
+    value,
+    updatedAt: new Date().toISOString()
+  };
+  persistLocalData();
+  renderMood();
 }
 
 async function addEvent(event) {
@@ -697,6 +727,11 @@ function bindEvents() {
       els.chatInput.focus();
     });
   });
+  $$('[data-mood]').forEach((button) => {
+    button.addEventListener('click', () => {
+      saveMood(button.dataset.mood);
+    });
+  });
   $$('.quick-pill').forEach((pill) => {
     pill.addEventListener('click', () => {
       els.chatInput.value = pill.dataset.text;
@@ -724,6 +759,7 @@ async function boot() {
   state.couple = session.couple || null;
   state.messages = readJson(STORAGE_KEYS.messages, []);
   state.events = readJson(STORAGE_KEYS.events, window.demoData?.events || []);
+  state.mood = readJson(STORAGE_KEYS.mood, null);
   state.translation = {
     apiKey: savedTranslation.apiKey || DEFAULT_GEMINI_API_KEY,
     model: savedTranslation.model || DEFAULT_MODEL

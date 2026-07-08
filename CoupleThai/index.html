@@ -53,6 +53,18 @@
               <h2>오늘 챙길 것</h2>
               <span id="todayBadge">Daily</span>
             </div>
+            <div class="mood-check">
+              <div>
+                <strong>오늘 기분</strong>
+                <p id="moodStatus">아직 공유한 기분이 없습니다.</p>
+              </div>
+              <div class="mood-buttons" aria-label="오늘 기분 선택">
+                <button type="button" data-mood="좋아">좋아</button>
+                <button type="button" data-mood="보고 싶어">그리워</button>
+                <button type="button" data-mood="피곤해">피곤</button>
+                <button type="button" data-mood="사랑해">사랑</button>
+              </div>
+            </div>
             <button class="care-item" type="button" data-quick="안녕, 오늘 하루 어땠어?">
               <span>안부 보내기</span>
               <strong>상대 언어로 바로 번역</strong>
@@ -180,39 +192,59 @@
             <p id="connectionStatus" class="soft-note">아직 커플이 연결되지 않았습니다.</p>
           </section>
 
-          <section class="settings-panel">
-            <h2>Gemini 번역</h2>
-            <form id="apiConfigForm" class="panel-form flat">
-              <input id="apiKeyInput" type="hidden" autocomplete="off" />
-              <input id="modelInput" type="text" placeholder="gemini-2.5-flash" />
-              <button type="submit">번역 설정 저장</button>
-            </form>
-            <p id="apiStatus" class="soft-note">배포 환경에서는 Vercel 환경변수 GEMINI_API_KEY로 번역합니다.</p>
-          </section>
-
-          <section class="settings-panel">
-            <h2>Firebase / Firestore</h2>
-            <form id="firebaseConfigForm" class="panel-form flat">
-              <input id="firebaseApiKeyInput" type="password" placeholder="Firebase API Key" autocomplete="off" />
-              <input id="firebaseAuthDomainInput" type="text" placeholder="Auth Domain" />
-              <input id="firebaseProjectIdInput" type="text" placeholder="Project ID" />
-              <input id="firebaseStorageBucketInput" type="text" placeholder="Storage Bucket" />
-              <input id="firebaseMessagingSenderIdInput" type="text" placeholder="Messaging Sender ID" />
-              <input id="firebaseAppIdInput" type="text" placeholder="App ID" />
-              <button type="submit">Firebase 설정 저장</button>
-            </form>
-            <p id="firebaseConfigStatus" class="soft-note">Firebase 값을 입력하면 Firestore 저장을 시도합니다.</p>
-          </section>
-
-          <section class="settings-panel">
-            <h2>Firebase Storage</h2>
-            <div class="panel-form flat">
-              <input id="memoryFileInput" type="file" accept="image/*" />
-              <button id="uploadMemoryBtn" type="button">사진 업로드</button>
+          <section class="settings-panel simple-settings">
+            <h2>기본 사용</h2>
+            <div class="settings-summary">
+              <div>
+                <span>번역</span>
+                <strong>자동</strong>
+                <p>앱에 설정된 Gemini 키로 바로 번역합니다.</p>
+              </div>
+              <div>
+                <span>저장</span>
+                <strong id="settingsStorageSummary">로컬</strong>
+                <p>Firebase가 연결되면 둘만의 공간에 저장됩니다.</p>
+              </div>
             </div>
-            <p id="memoryUploadStatus" class="soft-note">Storage bucket: lovethai-2ddbc.firebasestorage.app</p>
-            <a id="lastMemoryLink" class="memory-link" href="#" target="_blank" rel="noreferrer" hidden>업로드한 사진 열기</a>
+            <p class="soft-note">여자친구는 API 키를 입력하지 않아도 됩니다. 커플 코드만 공유하면 됩니다.</p>
           </section>
+
+          <details class="advanced-settings">
+            <summary>고급 설정</summary>
+            <section class="settings-panel">
+              <h2>Gemini 번역</h2>
+              <form id="apiConfigForm" class="panel-form flat">
+                <input id="apiKeyInput" type="hidden" autocomplete="off" />
+                <input id="modelInput" type="text" placeholder="gemini-2.5-flash" />
+                <button type="submit">번역 설정 저장</button>
+              </form>
+              <p id="apiStatus" class="soft-note">기본 번역 키는 서버에 설정되어 있습니다.</p>
+            </section>
+
+            <section class="settings-panel">
+              <h2>Firebase / Firestore</h2>
+              <form id="firebaseConfigForm" class="panel-form flat">
+                <input id="firebaseApiKeyInput" type="password" placeholder="Firebase API Key" autocomplete="off" />
+                <input id="firebaseAuthDomainInput" type="text" placeholder="Auth Domain" />
+                <input id="firebaseProjectIdInput" type="text" placeholder="Project ID" />
+                <input id="firebaseStorageBucketInput" type="text" placeholder="Storage Bucket" />
+                <input id="firebaseMessagingSenderIdInput" type="text" placeholder="Messaging Sender ID" />
+                <input id="firebaseAppIdInput" type="text" placeholder="App ID" />
+                <button type="submit">Firebase 설정 저장</button>
+              </form>
+              <p id="firebaseConfigStatus" class="soft-note">Firebase 값을 입력하면 Firestore 저장을 시도합니다.</p>
+            </section>
+
+            <section class="settings-panel">
+              <h2>사진 추억</h2>
+              <div class="panel-form flat">
+                <input id="memoryFileInput" type="file" accept="image/*" />
+                <button id="uploadMemoryBtn" type="button">사진 업로드</button>
+              </div>
+              <p id="memoryUploadStatus" class="soft-note">Storage bucket: lovethai-2ddbc.firebasestorage.app</p>
+              <a id="lastMemoryLink" class="memory-link" href="#" target="_blank" rel="noreferrer" hidden>업로드한 사진 열기</a>
+            </section>
+          </details>
         </section>
       </main>
 
