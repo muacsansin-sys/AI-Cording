@@ -12,8 +12,12 @@
   ],
   "routes": [
     {
+      "src": "/api/translate",
+      "dest": "/api/translate.js"
+    },
+    {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/api/$1.js"
     },
     {
       "src": "/(.*)",

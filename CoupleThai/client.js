@@ -181,7 +181,7 @@ async function translateWithServer(text, source, target, model) {
   if (window.location.protocol === 'file:') return null;
 
   try {
-    const response = await fetch('/api/translate', {
+    const response = await fetch('/api/translate.js', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, source, target, model })
