@@ -457,6 +457,21 @@ p {
   margin: -4px 2px 12px;
 }
 
+#chat.view.active {
+  height: calc(100dvh - 168px);
+  min-height: 430px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#chat .screen-head,
+#chat .screen-status,
+#chat .quick-actions,
+#chat .composer {
+  flex: 0 0 auto;
+}
+
 .round-button {
   min-width: 44px;
   height: 40px;
@@ -470,8 +485,9 @@ p {
 }
 
 .message-list {
-  min-height: calc(100vh - 310px);
-  max-height: calc(100vh - 270px);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   padding: 12px;
   border: 1px solid var(--line);
@@ -545,7 +561,7 @@ p {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
-  margin: 10px 0;
+  margin: 8px 0;
 }
 
 .quick-pill {
@@ -571,6 +587,7 @@ p {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
+  padding-bottom: max(2px, env(safe-area-inset-bottom));
 }
 
 .composer input,
