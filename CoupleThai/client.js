@@ -254,6 +254,9 @@ function authDisplayName() {
 
 function initAuthListener() {
   if (!state.auth) return;
+  state.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL).catch((error) => {
+    console.warn('Auth persistence setup failed:', error);
+  });
 
   state.auth.onAuthStateChanged(async (user) => {
     state.authUser = user || null;
@@ -277,6 +280,19 @@ function initAuthListener() {
 
     renderAll();
   });
+}
+
+async function finishRedirectLogin() {
+  if (!state.auth) return;
+  try {
+    const result = await state.auth.getRedirectResult();
+    if (result?.user && els.authStatus) {
+      els.authStatus.textContent = `${result.user.displayName || result.user.email} 계정으로 로그인됨`;
+    }
+  } catch (error) {
+    console.warn('Google redirect login failed:', error);
+    showAuthError(error);
+  }
 }
 
 function coupleDoc() {
@@ -733,13 +749,29 @@ async function loginWithGoogle() {
     return;
   }
 
+  const provider = new window.firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
   try {
-    const provider = new window.firebase.auth.GoogleAuthProvider();
     await state.auth.signInWithPopup(provider);
   } catch (error) {
     console.warn('Google login failed:', error);
-    els.authStatus.textContent = 'Google 로그인이 실패했습니다. Firebase Auth의 Google 제공업체가 켜져 있는지 확인해주세요.';
+    if (['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(error.code)) {
+      els.authStatus.textContent = '팝업 로그인이 막혀서 redirect 로그인으로 전환합니다.';
+      await state.auth.signInWithRedirect(provider);
+      return;
+    }
+    showAuthError(error);
   }
+}
+
+function showAuthError(error) {
+  const messageByCode = {
+    'auth/unauthorized-domain': `현재 도메인(${window.location.hostname})이 Firebase Auth 승인 도메인에 없습니다.`,
+    'auth/operation-not-allowed': 'Firebase Authentication에서 Google 제공업체가 아직 켜져 있지 않습니다.',
+    'auth/network-request-failed': '네트워크 연결 때문에 Google 로그인이 실패했습니다.'
+  };
+  els.authStatus.textContent = messageByCode[error.code] || `Google 로그인 실패: ${error.code || error.message}`;
 }
 
 async function logout() {
@@ -972,6 +1004,7 @@ async function boot() {
   }
   bindEvents();
   initAuthListener();
+  finishRedirectLogin();
   renderAll();
 }
 
