@@ -315,6 +315,12 @@ p {
   line-height: 1.5;
 }
 
+.invite-panel .member-line {
+  margin-top: 7px;
+  color: #b42345;
+  font-weight: 900;
+}
+
 .invite-panel button {
   min-height: 42px;
   border: 0;
@@ -798,6 +804,10 @@ p {
 .tab span {
   font-size: 1.05rem;
   line-height: 1;
+}
+
+.tab b {
+  font: inherit;
 }
 
 .tab.active {

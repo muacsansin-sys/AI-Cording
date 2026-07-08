@@ -6,7 +6,8 @@ const STORAGE_KEYS = {
   startDate: 'lovebridge.startDate',
   mood: 'lovebridge.mood',
   pendingInvite: 'lovebridge.pendingInvite',
-  createAfterLogin: 'lovebridge.createAfterLogin'
+  createAfterLogin: 'lovebridge.createAfterLogin',
+  language: 'lovebridge.language'
 };
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -22,6 +23,7 @@ const els = {
   homeCode: $('#homeCode'),
   copyCodeBtn: $('#copyCodeBtn'),
   inviteActionBtn: $('#inviteActionBtn'),
+  connectedMembers: $('#connectedMembers'),
   homeConnection: $('#homeConnection'),
   nextEvent: $('#nextEvent'),
   nextEventDetail: $('#nextEventDetail'),
@@ -78,6 +80,7 @@ const state = {
   couple: null,
   messages: [],
   events: [],
+  members: [],
   translation: { apiKey: DEFAULT_GEMINI_API_KEY, model: DEFAULT_MODEL },
   startDate: '',
   mood: null,
@@ -86,13 +89,196 @@ const state = {
   auth: null,
   authUser: null,
   unsubMessages: null,
-  unsubEvents: null
+  unsubEvents: null,
+  unsubMembers: null,
+  language: new URLSearchParams(window.location.search).has('invite') ? 'th' : 'ko'
 };
 
 const inviteCode = new URLSearchParams(window.location.search).get('invite')
   || new URLSearchParams(window.location.search).get('couple')
   || new URLSearchParams(window.location.search).get('code')
   || '';
+
+const I18N = {
+  ko: {
+    homeEyebrow: '오늘의 연결',
+    homeTitle: '말은 번역하고, 마음은 그대로.',
+    homeCopy: '여자친구와 매일 연락하고, 약속과 기념일을 한곳에서 관리하세요.',
+    goChat: '바로 대화',
+    ourRoom: '우리 방',
+    nextPlan: '다음 약속',
+    inviteTitle: '링크 하나로 둘만의 방 만들기',
+    inviteCopy: 'Google 로그인 후 초대 링크를 보내면 상대가 바로 같은 공간에 연결됩니다.',
+    todayCare: '오늘 챙길 것',
+    todayMood: '오늘 기분',
+    moodGood: '좋아',
+    moodMiss: '그리워',
+    moodTired: '피곤',
+    moodLove: '사랑',
+    sendGreeting: '안부 보내기',
+    autoTranslate: '상대 언어로 바로 번역',
+    sweetWords: '다정한 말',
+    sweetWordsHint: '짧게 보내기 좋은 문장',
+    chatTitle: '번역 채팅',
+    calendarTitle: '둘만의 일정',
+    addEvent: '일정 추가',
+    milestonesTitle: '기념일',
+    firstDate: '처음 만난 날',
+    save: '저장',
+    messageDraft: '보낼 말 초안',
+    refresh: '새로',
+    photoMemories: '사진 추억',
+    uploadPhoto: '사진 업로드',
+    translation: '번역',
+    storage: '저장',
+    quickHello: '안부',
+    quickMiss: '보고싶어',
+    quickThanks: '고마워',
+    quickLove: '사랑해',
+    send: '전송',
+    eventDate: '데이트',
+    eventAnniversary: '기념일',
+    eventTravel: '여행',
+    eventCall: '영상통화',
+    advanced: '고급 설정',
+    geminiTranslate: 'Gemini 번역',
+    tabHome: '홈',
+    tabChat: '채팅',
+    tabCalendar: '일정',
+    tabMilestones: '기념일',
+    tabSettings: '설정',
+    chatPlaceholder: '한국어 또는 태국어로 입력',
+    eventPlaceholder: '예: 금요일 영상통화',
+    namePlaceholder: '표시 이름 (선택)',
+    codePlaceholder: '참여할 커플 코드',
+    defaultName: (name) => `${name} (기본 이름)`,
+    settingsTitle: '설정',
+    googleLogin: 'Google 로그인',
+    startGoogle: 'Google로 시작하기',
+    logout: '로그아웃',
+    inviteLink: '초대 링크',
+    notConnected: '연결 전',
+    connected: '연결됨',
+    disconnected: '미연결',
+    needConnect: '연결 필요',
+    copyInvite: '초대 링크 복사',
+    makeInvite: '초대 링크 만들기',
+    loginThenMake: 'Google 로그인 후 만들기',
+    copied: '링크 복사됨',
+    connectedWith: (names) => `${names} 연결됨`,
+    mySpace: (name) => `${name}님의 커플 공간입니다. 초대 링크를 공유하세요.`,
+    setupSpace: '설정에서 Google 로그인 후 커플 공간을 만들어주세요.',
+    connectedStatus: (code) => `커플 코드 ${code}로 연결되었습니다. 초대 링크를 상대에게 공유하세요.`,
+    disconnectedStatus: 'Google 로그인 후 새 커플을 만들면 상대가 링크로 자동 참여할 수 있습니다.',
+    chatReady: '실시간으로 메시지를 동기화합니다.',
+    chatNeedsConnect: 'Google 로그인과 커플 연결 후 메시지를 보낼 수 있습니다.',
+    loggedIn: (name) => `${name} 계정으로 로그인됨`,
+    loginHint: '로그인하면 다른 기기에서도 같은 커플 공간을 사용할 수 있습니다.',
+    noMood: '아직 공유한 기분이 없습니다.',
+    savedAt: (value, time) => `${value} · ${time}에 저장됨`,
+    noEvents: '등록된 일정이 없습니다.',
+    noNextEvent: '일정 없음',
+    nextEventHint: '데이트, 통화, 여행 일정을 추가하세요.',
+    noMessages: '아직 메시지가 없습니다.<br />짧은 안부부터 보내보세요.'
+  },
+  th: {
+    homeEyebrow: 'การเชื่อมต่อวันนี้',
+    homeTitle: 'แปลภาษาให้เข้าใจ แต่เก็บความรู้สึกไว้เหมือนเดิม',
+    homeCopy: 'คุยกันทุกวัน จัดการนัดหมายและวันสำคัญของเราสองคนในที่เดียว',
+    goChat: 'ไปแชท',
+    ourRoom: 'ห้องของเรา',
+    nextPlan: 'นัดต่อไป',
+    inviteTitle: 'สร้างห้องของเราด้วยลิงก์เดียว',
+    inviteCopy: 'เข้าสู่ระบบ Google แล้วส่งลิงก์เชิญ อีกคนจะเข้าห้องเดียวกันได้ทันที',
+    todayCare: 'สิ่งที่อยากดูแลวันนี้',
+    todayMood: 'อารมณ์วันนี้',
+    moodGood: 'ดี',
+    moodMiss: 'คิดถึง',
+    moodTired: 'เหนื่อย',
+    moodLove: 'รัก',
+    sendGreeting: 'ส่งคำทักทาย',
+    autoTranslate: 'แปลเป็นภาษาของอีกคนทันที',
+    sweetWords: 'คำหวาน',
+    sweetWordsHint: 'ประโยคสั้นๆ ที่ส่งแล้วน่ารัก',
+    chatTitle: 'แชทแปลภาษา',
+    calendarTitle: 'ตารางของเรา',
+    addEvent: 'เพิ่มนัด',
+    milestonesTitle: 'วันสำคัญ',
+    firstDate: 'วันที่เจอกันครั้งแรก',
+    save: 'บันทึก',
+    messageDraft: 'ร่างข้อความ',
+    refresh: 'ใหม่',
+    photoMemories: 'รูปความทรงจำ',
+    uploadPhoto: 'อัปโหลดรูป',
+    translation: 'แปลภาษา',
+    storage: 'บันทึก',
+    quickHello: 'ทักทาย',
+    quickMiss: 'คิดถึง',
+    quickThanks: 'ขอบคุณ',
+    quickLove: 'รักนะ',
+    send: 'ส่ง',
+    eventDate: 'เดต',
+    eventAnniversary: 'วันสำคัญ',
+    eventTravel: 'ทริป',
+    eventCall: 'วิดีโอคอล',
+    advanced: 'ตั้งค่าขั้นสูง',
+    geminiTranslate: 'แปลด้วย Gemini',
+    tabHome: 'หน้าแรก',
+    tabChat: 'แชท',
+    tabCalendar: 'ตาราง',
+    tabMilestones: 'วันสำคัญ',
+    tabSettings: 'ตั้งค่า',
+    chatPlaceholder: 'พิมพ์ภาษาไทยหรือเกาหลี',
+    eventPlaceholder: 'เช่น วิดีโอคอลวันศุกร์',
+    namePlaceholder: 'ชื่อที่จะแสดง (ไม่บังคับ)',
+    codePlaceholder: 'รหัสคู่รักที่ได้รับ',
+    defaultName: (name) => `${name} (ชื่อเริ่มต้น)`,
+    settingsTitle: 'ตั้งค่า',
+    googleLogin: 'เข้าสู่ระบบ Google',
+    startGoogle: 'เริ่มด้วย Google',
+    logout: 'ออกจากระบบ',
+    inviteLink: 'ลิงก์เชิญ',
+    notConnected: 'ยังไม่เชื่อมต่อ',
+    connected: 'เชื่อมต่อแล้ว',
+    disconnected: 'ยังไม่เชื่อมต่อ',
+    needConnect: 'ต้องเชื่อมต่อ',
+    copyInvite: 'คัดลอกลิงก์เชิญ',
+    makeInvite: 'สร้างลิงก์เชิญ',
+    loginThenMake: 'สร้างลิงก์',
+    copied: 'คัดลอกลิงก์แล้ว',
+    connectedWith: (names) => `เชื่อมต่อแล้ว: ${names}`,
+    mySpace: (name) => `นี่คือพื้นที่คู่ของ ${name} แชร์ลิงก์เชิญให้อีกคนได้เลย`,
+    setupSpace: 'เข้าสู่ระบบ Google แล้วสร้างพื้นที่ของคู่รักก่อน',
+    connectedStatus: (code) => `เชื่อมต่อด้วยรหัส ${code} แล้ว แชร์ลิงก์เชิญให้อีกคนได้เลย`,
+    disconnectedStatus: 'เข้าสู่ระบบ Google แล้วสร้างคู่ใหม่ อีกคนจะเข้าผ่านลิงก์ได้อัตโนมัติ',
+    chatReady: 'ซิงก์ข้อความแบบเรียลไทม์',
+    chatNeedsConnect: 'เข้าสู่ระบบและเชื่อมต่อคู่ก่อนจึงจะส่งข้อความได้',
+    loggedIn: (name) => `เข้าสู่ระบบด้วยบัญชี ${name}`,
+    loginHint: 'เมื่อล็อกอินแล้ว จะใช้พื้นที่เดียวกันได้จากอุปกรณ์อื่น',
+    noMood: 'ยังไม่ได้แชร์อารมณ์วันนี้',
+    savedAt: (value, time) => `${value} · บันทึกเมื่อ ${time}`,
+    noEvents: 'ยังไม่มีนัดหมาย',
+    noNextEvent: 'ยังไม่มีนัด',
+    nextEventHint: 'เพิ่มเดต วิดีโอคอล หรือทริปของเรา',
+    noMessages: 'ยังไม่มีข้อความ<br />เริ่มจากคำทักทายสั้นๆ ได้เลย'
+  }
+};
+
+function t(key, ...args) {
+  const entry = I18N[state.language]?.[key] ?? I18N.ko[key] ?? key;
+  return typeof entry === 'function' ? entry(...args) : entry;
+}
+
+function applyI18n() {
+  document.documentElement.lang = state.language;
+  $$('[data-i18n]').forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  if (els.chatInput) els.chatInput.placeholder = t('chatPlaceholder');
+  if (els.eventTitle) els.eventTitle.placeholder = t('eventPlaceholder');
+  if (els.profileName) els.profileName.placeholder = t('namePlaceholder');
+  if (els.partnerCode) els.partnerCode.placeholder = t('codePlaceholder');
+}
 
 function readJson(key, fallback) {
   try {
@@ -339,14 +525,17 @@ async function loadRemoteData() {
   if (!doc) return false;
 
   try {
-    const [messagesSnap, eventsSnap] = await Promise.all([
+    const [messagesSnap, eventsSnap, membersSnap] = await Promise.all([
       doc.collection('messages').orderBy('createdAt', 'asc').get(),
-      doc.collection('events').orderBy('date', 'asc').get()
+      doc.collection('events').orderBy('date', 'asc').get(),
+      doc.collection('members').get()
     ]);
     const remoteMessages = messagesSnap.docs.map((item) => item.data());
     const remoteEvents = eventsSnap.docs.map((item) => item.data());
+    const remoteMembers = membersSnap.docs.map((item) => item.data());
     if (remoteMessages.length) state.messages = remoteMessages;
     if (remoteEvents.length) state.events = remoteEvents;
+    if (remoteMembers.length) state.members = remoteMembers;
     return true;
   } catch (error) {
     console.warn('Firestore load failed:', error);
@@ -357,8 +546,10 @@ async function loadRemoteData() {
 function stopRealtimeSync() {
   if (state.unsubMessages) state.unsubMessages();
   if (state.unsubEvents) state.unsubEvents();
+  if (state.unsubMembers) state.unsubMembers();
   state.unsubMessages = null;
   state.unsubEvents = null;
+  state.unsubMembers = null;
 }
 
 function startRealtimeSync() {
@@ -384,6 +575,13 @@ function startRealtimeSync() {
   }, (error) => {
     console.warn('Events realtime sync failed:', error);
   });
+
+  state.unsubMembers = doc.collection('members').onSnapshot((snapshot) => {
+    state.members = snapshot.docs.map((item) => item.data());
+    renderConnection();
+  }, (error) => {
+    console.warn('Members realtime sync failed:', error);
+  });
 }
 
 function markVisibleMessagesRead(messageDocs) {
@@ -408,6 +606,7 @@ function persistLocalData() {
   writeJson(STORAGE_KEYS.events, state.events);
   writeJson(STORAGE_KEYS.settings, state.translation);
   writeJson(STORAGE_KEYS.mood, state.mood);
+  localStorage.setItem(STORAGE_KEYS.language, state.language);
   localStorage.setItem(STORAGE_KEYS.startDate, state.startDate || '');
 }
 
@@ -422,28 +621,35 @@ function updateFirebaseConfig(config) {
 function renderConnection() {
   const connected = Boolean(state.user && state.couple);
   const loggedIn = Boolean(state.authUser);
-  els.profileBadge.textContent = connected ? `${state.user.name} · ${state.couple.code}` : (loggedIn ? authDisplayName() : 'Google 로그인');
-  els.homeCode.textContent = connected ? state.couple.code : '연결 전';
-  els.homeConnection.textContent = connected ? `${state.user.name}님의 커플 공간입니다. 초대 링크를 공유하세요.` : '설정에서 Google 로그인 후 커플 공간을 만들어주세요.';
+  const memberNames = state.members.length
+    ? state.members.map((member) => member.name).filter(Boolean).join(' + ')
+    : (connected ? state.user.name : '');
+  els.profileBadge.textContent = connected ? `${state.user.name} · ${state.couple.code}` : (loggedIn ? authDisplayName() : 'Google');
+  els.homeCode.textContent = connected ? state.couple.code : t('notConnected');
+  els.homeConnection.textContent = connected ? t('mySpace', state.user.name) : t('setupSpace');
   els.copyCodeBtn.disabled = !connected;
-  els.copyCodeBtn.textContent = connected ? '초대 링크 복사' : '연결 필요';
+  els.copyCodeBtn.textContent = connected ? t('copyInvite') : t('needConnect');
   if (els.inviteActionBtn) {
     els.inviteActionBtn.textContent = connected
-      ? '초대 링크 복사'
-      : (loggedIn ? '초대 링크 만들기' : 'Google 로그인 후 만들기');
+      ? t('copyInvite')
+      : (loggedIn ? t('makeInvite') : t('loginThenMake'));
   }
   els.connectionState.textContent = connected ? '연결됨' : '미연결';
-  els.connectionStatus.textContent = connected ? `커플 코드 ${state.couple.code}로 연결되었습니다. 초대 링크를 상대에게 공유하세요.` : 'Google 로그인 후 새 커플을 만들면 상대가 링크로 자동 참여할 수 있습니다.';
-  els.chatStatus.textContent = connected ? '실시간으로 메시지를 동기화합니다.' : 'Google 로그인과 커플 연결 후 메시지를 보낼 수 있습니다.';
+  els.connectionState.textContent = connected ? t('connected') : t('disconnected');
+  els.connectionStatus.textContent = connected ? t('connectedStatus', state.couple.code) : t('disconnectedStatus');
+  els.chatStatus.textContent = connected ? t('chatReady') : t('chatNeedsConnect');
+  if (els.connectedMembers) {
+    els.connectedMembers.textContent = memberNames ? t('connectedWith', memberNames) : t('notConnected');
+  }
 
   if (els.profileName && loggedIn && !els.profileName.value) {
-    els.profileName.placeholder = `${authDisplayName()} (기본 이름)`;
+    els.profileName.placeholder = t('defaultName', authDisplayName());
   }
 
   if (els.authStatus) {
     els.authStatus.textContent = loggedIn
-      ? `${authDisplayName()} 계정으로 로그인됨`
-      : '로그인하면 다른 기기에서도 같은 커플 공간을 사용할 수 있습니다.';
+      ? t('loggedIn', authDisplayName())
+      : t('loginHint');
   }
   if (els.googleLoginBtn) els.googleLoginBtn.hidden = loggedIn;
   if (els.logoutBtn) els.logoutBtn.hidden = !loggedIn;
@@ -476,14 +682,14 @@ function renderSettings() {
     ? 'Firestore와 Storage 연결이 준비되었습니다.'
     : 'Firebase Web App의 apiKey/appId까지 입력하면 Firestore와 Storage 연결을 시도합니다.';
   els.memoryUploadStatus.textContent = storageReady
-    ? 'Storage 연결됨. 커플 연결 후 사진을 업로드할 수 있습니다.'
+    ? (state.language === 'th' ? 'เชื่อมต่อ Storage แล้ว อัปโหลดรูปหลังเชื่อมต่อคู่ได้' : 'Storage 연결됨. 커플 연결 후 사진을 업로드할 수 있습니다.')
     : 'Storage bucket: lovethai-2ddbc.firebasestorage.app';
 }
 
 function renderMood() {
   if (!els.moodStatus) return;
   if (!state.mood) {
-    els.moodStatus.textContent = '아직 공유한 기분이 없습니다.';
+    els.moodStatus.textContent = t('noMood');
     return;
   }
 
@@ -491,14 +697,14 @@ function renderMood() {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date(state.mood.updatedAt));
-  els.moodStatus.textContent = `${state.mood.value} · ${time}에 저장됨`;
+  els.moodStatus.textContent = t('savedAt', state.mood.value, time);
 }
 
 function renderMessages() {
   els.messageList.innerHTML = '';
 
   if (!state.messages.length) {
-    els.messageList.innerHTML = '<p class="empty">아직 메시지가 없습니다.<br />짧은 안부부터 보내보세요.</p>';
+    els.messageList.innerHTML = `<p class="empty">${t('noMessages')}</p>`;
     return;
   }
 
@@ -525,12 +731,10 @@ function renderMessages() {
 }
 
 function eventTypeLabel(type) {
-  return {
-    date: '데이트',
-    anniversary: '기념일',
-    travel: '여행',
-    call: '영상통화'
-  }[type] || '일정';
+  const labels = state.language === 'th'
+    ? { date: 'เดต', anniversary: 'วันสำคัญ', travel: 'ทริป', call: 'วิดีโอคอล' }
+    : { date: '데이트', anniversary: '기념일', travel: '여행', call: '영상통화' };
+  return labels[type] || (state.language === 'th' ? 'นัดหมาย' : '일정');
 }
 
 function renderEvents() {
@@ -538,7 +742,7 @@ function renderEvents() {
   els.eventList.innerHTML = '';
 
   if (!sorted.length) {
-    els.eventList.innerHTML = '<p class="empty">등록된 일정이 없습니다.</p>';
+    els.eventList.innerHTML = `<p class="empty">${t('noEvents')}</p>`;
   }
 
   sorted.forEach((event) => {
@@ -561,8 +765,8 @@ function renderEvents() {
 
   const today = new Date(new Date().toDateString());
   const upcoming = sorted.find((event) => new Date(event.date) >= today) || sorted[0];
-  els.nextEvent.textContent = upcoming ? upcoming.title : '일정 없음';
-  els.nextEventDetail.textContent = upcoming ? `${formatDate(upcoming.date)} · ${eventTypeLabel(upcoming.type)}` : '데이트, 통화, 여행 일정을 추가하세요.';
+  els.nextEvent.textContent = upcoming ? upcoming.title : t('noNextEvent');
+  els.nextEventDetail.textContent = upcoming ? `${formatDate(upcoming.date)} · ${eventTypeLabel(upcoming.type)}` : t('nextEventHint');
 }
 
 function renderMilestones() {
@@ -611,6 +815,7 @@ function renderSuggestions() {
 }
 
 function renderAll() {
+  applyI18n();
   renderConnection();
   renderSettings();
   renderMood();
@@ -648,6 +853,7 @@ async function joinCoupleByCode(code) {
 async function connectToCouple(code, name, role) {
   const coupleCode = code.trim().toUpperCase();
   const couple = { id: `couple-${coupleCode.toLowerCase()}`, code: coupleCode };
+  state.language = role === 'partner' ? 'th' : 'ko';
 
   state.user = {
     id: state.authUser.uid,
@@ -658,6 +864,7 @@ async function connectToCouple(code, name, role) {
   state.couple = couple;
   state.messages = [];
   state.events = [];
+  state.members = [];
 
   persistLocalData();
   els.profileForm.reset();
@@ -1023,6 +1230,8 @@ async function boot() {
   state.messages = readJson(STORAGE_KEYS.messages, []);
   state.events = readJson(STORAGE_KEYS.events, []);
   state.mood = readJson(STORAGE_KEYS.mood, null);
+  state.language = localStorage.getItem(STORAGE_KEYS.language) || (inviteCode ? 'th' : 'ko');
+  if (state.user?.role === 'partner') state.language = 'th';
   state.translation = {
     apiKey: savedTranslation.apiKey || DEFAULT_GEMINI_API_KEY,
     model: savedTranslation.model || DEFAULT_MODEL
