@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function hasOnlyFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isStringField(name, maxLength) {
+      return request.resource.data[name] is string
+        && request.resource.data[name].size() > 0
+        && request.resource.data[name].size() <= maxLength;
+    }
+
+    function isOptionalStringField(name, maxLength) {
+      return !(name in request.resource.data)
+        || request.resource.data[name] == null
+        || (request.resource.data[name] is string && request.resource.data[name].size() <= maxLength);
+    }
+
+    function validCouple(coupleId) {
+      return hasOnlyFields(['id', 'code', 'updatedAt'])
+        && request.resource.data.id == coupleId
+        && isStringField('code', 16)
+        && isStringField('updatedAt', 40);
+    }
+
+    function validMember() {
+      return hasOnlyFields(['id', 'name', 'coupleId', 'role', 'updatedAt'])
+        && isStringField('id', 80)
+        && isStringField('name', 40)
+        && isStringField('coupleId', 100)
+        && request.resource.data.role in ['owner', 'partner']
+        && isStringField('updatedAt', 40);
+    }
+
+    function validMessage(coupleId) {
+      return hasOnlyFields([
+          'id', 'coupleId', 'senderId', 'senderName', 'text',
+          'translatedText', 'source', 'target', 'engine', 'createdAt'
+        ])
+        && request.resource.data.coupleId == coupleId
+        && isStringField('id', 100)
+        && isStringField('senderId', 100)
+        && isStringField('senderName', 40)
+        && isStringField('text', 1000)
+        && isOptionalStringField('translatedText', 1200)
+        && request.resource.data.source in ['ko', 'th']
+        && request.resource.data.target in ['ko', 'th']
+        && isOptionalStringField('engine', 40)
+        && isStringField('createdAt', 40);
+    }
+
+    function validEvent(coupleId) {
+      return hasOnlyFields(['id', 'coupleId', 'title', 'date', 'type', 'createdAt'])
+        && request.resource.data.coupleId == coupleId
+        && isStringField('id', 100)
+        && isStringField('title', 120)
+        && isStringField('date', 20)
+        && request.resource.data.type in ['date', 'anniversary', 'travel', 'call']
+        && isStringField('createdAt', 40);
+    }
+
+    match /couples/{coupleId} {
+      allow get, list: if true;
+      allow create, update: if validCouple(coupleId);
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow get, list: if true;
+        allow create, update: if validMember();
+        allow delete: if false;
+      }
+
+      match /messages/{messageId} {
+        allow get, list: if true;
+        allow create, update: if validMessage(coupleId);
+        allow delete: if false;
+      }
+
+      match /events/{eventId} {
+        allow get, list: if true;
+        allow create, update: if validEvent(coupleId);
+        allow delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

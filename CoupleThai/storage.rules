@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isSmallEnough() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /couples/{coupleId}/memories/{fileName} {
+      allow read: if true;
+      allow write: if isImage()
+        && isSmallEnough()
+        && request.resource.metadata.coupleId == coupleId
+        && request.resource.metadata.uploaderId is string
+        && request.resource.metadata.uploaderName is string;
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

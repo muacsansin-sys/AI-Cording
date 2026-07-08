@@ -62,6 +62,24 @@ couples/{coupleId}/messages/{messageId}
 couples/{coupleId}/events/{eventId}
 ```
 
-Storage bucket 기본값은 `lovethai-2ddbc.firebasestorage.app`입니다. 사진 업로드까지 바로 쓰려면 Firebase 콘솔의 Web App 설정에서 `apiKey`, `appId`, `messagingSenderId` 값이 추가로 필요합니다.
+Storage bucket 기본값은 `lovethai-2ddbc.firebasestorage.app`입니다.
+
+규칙 파일은 프로젝트에 포함되어 있습니다.
+
+```text
+firestore.rules
+storage.rules
+firebase.json
+.firebaserc
+```
+
+현재 규칙은 Firebase Auth가 없는 MVP용입니다. 커플 앱이 동작하도록 읽기/쓰기를 허용하되, 허용 경로와 필드, 이미지 파일 타입, 업로드 크기 제한을 둡니다. 실서비스 수준의 비공개 커플 공간은 Firebase Auth를 추가한 뒤 `request.auth.uid` 기준으로 제한해야 합니다.
+
+규칙 배포:
+
+```bash
+npx firebase login
+npx firebase deploy --only firestore:rules,storage --project lovethai-2ddbc
+```
 
 실서비스 확장 단계에서는 Firebase Auth, 보안 규칙, 환경변수 처리가 필요합니다.
