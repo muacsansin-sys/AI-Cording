@@ -5,7 +5,8 @@ const STORAGE_KEYS = {
   settings: 'lovebridge.translation',
   startDate: 'lovebridge.startDate',
   mood: 'lovebridge.mood',
-  pendingInvite: 'lovebridge.pendingInvite'
+  pendingInvite: 'lovebridge.pendingInvite',
+  createAfterLogin: 'lovebridge.createAfterLogin'
 };
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -20,6 +21,7 @@ const els = {
   profileBadge: $('#profileBadge'),
   homeCode: $('#homeCode'),
   copyCodeBtn: $('#copyCodeBtn'),
+  inviteActionBtn: $('#inviteActionBtn'),
   homeConnection: $('#homeConnection'),
   nextEvent: $('#nextEvent'),
   nextEventDetail: $('#nextEventDetail'),
@@ -273,6 +275,10 @@ function initAuthListener() {
     if (user && !state.couple && inviteCode) {
       localStorage.setItem(STORAGE_KEYS.pendingInvite, inviteCode.toUpperCase());
       await joinCoupleByCode(inviteCode.toUpperCase());
+    } else if (user && !state.couple && localStorage.getItem(STORAGE_KEYS.createAfterLogin) === '1') {
+      localStorage.removeItem(STORAGE_KEYS.createAfterLogin);
+      await connectToCouple(makeCode(), authDisplayName(), 'owner');
+      await copyCoupleCode();
     } else if (user && state.couple) {
       await saveCoupleRemote();
       startRealtimeSync();
@@ -421,6 +427,11 @@ function renderConnection() {
   els.homeConnection.textContent = connected ? `${state.user.name}님의 커플 공간입니다. 초대 링크를 공유하세요.` : '설정에서 Google 로그인 후 커플 공간을 만들어주세요.';
   els.copyCodeBtn.disabled = !connected;
   els.copyCodeBtn.textContent = connected ? '초대 링크 복사' : '연결 필요';
+  if (els.inviteActionBtn) {
+    els.inviteActionBtn.textContent = connected
+      ? '초대 링크 복사'
+      : (loggedIn ? '초대 링크 만들기' : 'Google 로그인 후 만들기');
+  }
   els.connectionState.textContent = connected ? '연결됨' : '미연결';
   els.connectionStatus.textContent = connected ? `커플 코드 ${state.couple.code}로 연결되었습니다. 초대 링크를 상대에게 공유하세요.` : 'Google 로그인 후 새 커플을 만들면 상대가 링크로 자동 참여할 수 있습니다.';
   els.chatStatus.textContent = connected ? '실시간으로 메시지를 동기화합니다.' : 'Google 로그인과 커플 연결 후 메시지를 보낼 수 있습니다.';
@@ -743,6 +754,26 @@ async function copyCoupleCode() {
   }, 1400);
 }
 
+async function handleInviteAction() {
+  if (state.couple) {
+    await copyCoupleCode();
+    if (els.inviteActionBtn) els.inviteActionBtn.textContent = '링크 복사됨';
+    window.setTimeout(renderConnection, 1400);
+    return;
+  }
+
+  if (!state.authUser) {
+    localStorage.setItem(STORAGE_KEYS.createAfterLogin, '1');
+    await loginWithGoogle();
+    return;
+  }
+
+  await connectToCouple(makeCode(), authDisplayName(), 'owner');
+  await copyCoupleCode();
+  if (els.inviteActionBtn) els.inviteActionBtn.textContent = '링크 복사됨';
+  window.setTimeout(renderConnection, 1400);
+}
+
 async function loginWithGoogle() {
   if (!state.auth) {
     els.authStatus.textContent = 'Firebase Auth가 아직 준비되지 않았습니다.';
@@ -969,6 +1000,7 @@ function bindEvents() {
 
   els.profileBadge.addEventListener('click', () => switchView('settings'));
   els.copyCodeBtn.addEventListener('click', copyCoupleCode);
+  els.inviteActionBtn.addEventListener('click', handleInviteAction);
   els.googleLoginBtn.addEventListener('click', loginWithGoogle);
   els.logoutBtn.addEventListener('click', logout);
   els.profileForm.addEventListener('submit', createOrJoinCouple);
