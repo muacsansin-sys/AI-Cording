@@ -18,6 +18,7 @@ const els = {
   views: $$('.view'),
   profileBadge: $('#profileBadge'),
   homeCode: $('#homeCode'),
+  copyCodeBtn: $('#copyCodeBtn'),
   homeConnection: $('#homeConnection'),
   nextEvent: $('#nextEvent'),
   nextEventDetail: $('#nextEventDetail'),
@@ -307,8 +308,10 @@ function renderConnection() {
   els.profileBadge.textContent = connected ? `${state.user.name} · ${state.couple.code}` : '커플 연결';
   els.homeCode.textContent = connected ? state.couple.code : '연결 전';
   els.homeConnection.textContent = connected ? `${state.user.name}님의 커플 공간입니다.` : '설정에서 커플 공간을 먼저 만들어주세요.';
+  els.copyCodeBtn.disabled = !connected;
+  els.copyCodeBtn.textContent = connected ? '코드 복사' : '연결 필요';
   els.connectionState.textContent = connected ? '연결됨' : '미연결';
-  els.connectionStatus.textContent = connected ? `커플 코드 ${state.couple.code}로 연결되었습니다.` : '아직 커플이 연결되지 않았습니다.';
+  els.connectionStatus.textContent = connected ? `커플 코드 ${state.couple.code}로 연결되었습니다. 이 코드를 상대에게 공유하세요.` : '한 명이 새 커플을 만들고, 상대는 같은 코드를 입력해 참여하면 됩니다.';
   els.chatStatus.textContent = connected ? '한국어와 태국어를 자동 감지해 번역합니다.' : '커플 연결 후 메시지를 보낼 수 있습니다.';
 }
 
@@ -492,9 +495,8 @@ async function createOrJoinCouple(event) {
     return;
   }
 
-  const couple = action === 'join'
-    ? { id: `couple-${code.toLowerCase()}`, code }
-    : { id: makeId('couple'), code: makeCode() };
+  const coupleCode = action === 'join' ? code : makeCode();
+  const couple = { id: `couple-${coupleCode.toLowerCase()}`, code: coupleCode };
 
   state.user = {
     id: makeId('user'),
@@ -503,17 +505,8 @@ async function createOrJoinCouple(event) {
     role: action === 'join' ? 'partner' : 'owner'
   };
   state.couple = couple;
-
-  state.messages = (state.messages.length ? state.messages : window.demoData?.messages || []).map((message) => ({
-    ...message,
-    id: message.id || makeId('message'),
-    coupleId: message.coupleId || couple.id
-  }));
-  state.events = (state.events.length ? state.events : window.demoData?.events || []).map((item) => ({
-    ...item,
-    id: item.id || makeId('event'),
-    coupleId: item.coupleId || couple.id
-  }));
+  state.messages = [];
+  state.events = [];
 
   persistLocalData();
   els.profileForm.reset();
@@ -522,7 +515,6 @@ async function createOrJoinCouple(event) {
   if (initFirebase()) {
     try {
       await saveCoupleRemote();
-      await Promise.all([...state.messages.map(saveMessageRemote), ...state.events.map(saveEventRemote)]);
     } catch (error) {
       console.warn('Firestore profile sync failed:', error);
     }
@@ -580,6 +572,21 @@ function saveMood(value) {
   };
   persistLocalData();
   renderMood();
+}
+
+async function copyCoupleCode() {
+  if (!state.couple?.code) return;
+
+  try {
+    await navigator.clipboard.writeText(state.couple.code);
+    els.copyCodeBtn.textContent = '복사됨';
+  } catch {
+    els.copyCodeBtn.textContent = state.couple.code;
+  }
+
+  window.setTimeout(() => {
+    renderConnection();
+  }, 1400);
 }
 
 async function addEvent(event) {
@@ -715,6 +722,11 @@ function clearChat() {
 function switchView(viewId) {
   els.tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === viewId));
   els.views.forEach((view) => view.classList.toggle('active', view.id === viewId));
+  if (state.user && state.couple && ['chat', 'calendar', 'milestones', 'home'].includes(viewId)) {
+    loadRemoteData().then((loaded) => {
+      if (loaded) renderAll();
+    });
+  }
 }
 
 function bindEvents() {
@@ -740,6 +752,7 @@ function bindEvents() {
   });
 
   els.profileBadge.addEventListener('click', () => switchView('settings'));
+  els.copyCodeBtn.addEventListener('click', copyCoupleCode);
   els.profileForm.addEventListener('submit', createOrJoinCouple);
   els.chatForm.addEventListener('submit', sendMessage);
   els.eventForm.addEventListener('submit', addEvent);
@@ -758,7 +771,7 @@ async function boot() {
   state.user = session.user || null;
   state.couple = session.couple || null;
   state.messages = readJson(STORAGE_KEYS.messages, []);
-  state.events = readJson(STORAGE_KEYS.events, window.demoData?.events || []);
+  state.events = readJson(STORAGE_KEYS.events, []);
   state.mood = readJson(STORAGE_KEYS.mood, null);
   state.translation = {
     apiKey: savedTranslation.apiKey || DEFAULT_GEMINI_API_KEY,
